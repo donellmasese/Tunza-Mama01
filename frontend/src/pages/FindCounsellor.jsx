@@ -179,11 +179,11 @@ export default function FindCounsellor() {
         method: "POST",
         body: JSON.stringify({
           womanId: user?.id || 4,
-          counsellorId: bookingTarget.id,
-          appointmentDate: bookingDate,
-          appointmentTime: bookingTime,
-          sessionMode: bookingMode === "online" ? "Online" : "In-Person",
-          notes: bookingNotes,
+          counsellorId: bookingCounsellor.id,
+          appointmentDate: bookingForm.preferredDate,
+          appointmentTime: bookingForm.preferredTime || "10:00 AM",
+          sessionMode: bookingForm.sessionType,
+          notes: bookingForm.notes,
         }),
       });
       setBookingSubmitted(true);
