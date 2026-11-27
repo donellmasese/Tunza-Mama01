@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "https://tunza-mama01.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL || "https://tunza-mama01.onrender.com/api";
 
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem("tunza_token");
