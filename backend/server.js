@@ -103,8 +103,8 @@ app.get("/api/counsellors", (req, res) => {
 // 4. Book Appointment (With Double-Booking Prevention)
 app.post("/api/appointments", (req, res) => {
   try {
-    const {
-      womanId = 4,
+    let {
+      womanId,
       counsellorId,
       appointmentDate,
       appointmentTime,
@@ -112,12 +112,52 @@ app.post("/api/appointments", (req, res) => {
       notes,
     } = req.body;
 
+    // Ensure womanId exists in users table (fallback to any mother or create demo user)
+    let woman = womanId
+      ? db.prepare("SELECT id FROM users WHERE id = ?").get(womanId)
+      : db.prepare("SELECT id FROM users WHERE role = 'mother' LIMIT 1").get();
+
+    if (!woman) {
+      const wInfo = db
+        .prepare(
+          `INSERT INTO users (full_name, email, phone, password_hash, role, verification_status)
+           VALUES (?, ?, ?, ?, 'mother', 'Verified')`
+        )
+        .run("Sample Mother", `mother_${Date.now()}@tunzamama.org`, "0700000000", "demo_hash");
+      woman = { id: wInfo.lastInsertRowid };
+    }
+
+    // Ensure counsellorId exists in users table (seed prototype counsellor if needed)
+    let counsellor = counsellorId
+      ? db.prepare("SELECT id FROM users WHERE id = ? AND role = 'counsellor'").get(counsellorId)
+      : null;
+
+    if (!counsellor) {
+      const sampleEmail = `counsellor${counsellorId || 1}@tunzamama.org`;
+      let existing = db.prepare("SELECT id FROM users WHERE email = ?").get(sampleEmail);
+      if (!existing) {
+        const cInfo = db
+          .prepare(
+            `INSERT INTO users (full_name, email, phone, password_hash, role, specialisation, verification_status)
+             VALUES (?, ?, ?, ?, 'counsellor', 'Perinatal Mental Health', 'Verified')`
+          )
+          .run(
+            `Sample Counsellor ${String.fromCharCode(64 + (Number(counsellorId) || 1))}`,
+            sampleEmail,
+            "0711000000",
+            "demo_hash"
+          );
+        existing = { id: cInfo.lastInsertRowid };
+      }
+      counsellor = existing;
+    }
+
     const conflict = db
       .prepare(
         `SELECT id FROM appointments 
          WHERE counsellor_id = ? AND appointment_date = ? AND appointment_time = ? AND status IN ('Pending', 'Confirmed')`
       )
-      .get(counsellorId, appointmentDate, appointmentTime);
+      .get(counsellor.id, appointmentDate, appointmentTime);
 
     if (conflict) {
       return res.status(409).json({
@@ -131,8 +171,8 @@ app.post("/api/appointments", (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(
-        womanId,
-        counsellorId,
+        woman.id,
+        counsellor.id,
         appointmentDate,
         appointmentTime,
         sessionMode || "Online",
